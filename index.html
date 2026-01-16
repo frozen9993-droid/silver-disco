@@ -84,6 +84,17 @@
     <script>
         let isChecking = false;
 
+        function updateStatus(isConnected) {
+            const statusDiv = document.getElementById('status');
+            if (isConnected) {
+                statusDiv.className = 'status connected';
+                statusDiv.textContent = '✓ Да, есть связь! / Yes, connected!';
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = '✗ Нет связи / No connection';
+            }
+        }
+
         async function checkConnection() {
             if (isChecking) return;
             
@@ -96,20 +107,33 @@
             button.disabled = true;
 
             try {
-                // Try to fetch a small file from GitHub or a reliable source
+                // Use navigator.onLine as primary check
+                if (!navigator.onLine) {
+                    updateStatus(false);
+                    return;
+                }
+
+                // Try to fetch a small image with a timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                
                 const response = await fetch('https://www.google.com/favicon.ico', {
-                    method: 'HEAD',
-                    mode: 'no-cors',
-                    cache: 'no-cache'
+                    method: 'GET',
+                    cache: 'no-cache',
+                    signal: controller.signal
                 });
                 
-                // If we reach here, we have connectivity
-                statusDiv.className = 'status connected';
-                statusDiv.textContent = '✓ Да, есть связь! / Yes, connected!';
+                clearTimeout(timeoutId);
+                
+                // Check if response is ok
+                if (response.ok || response.type === 'opaque') {
+                    updateStatus(true);
+                } else {
+                    updateStatus(false);
+                }
             } catch (error) {
-                // If fetch fails, we're offline
-                statusDiv.className = 'status disconnected';
-                statusDiv.textContent = '✗ Нет связи / No connection';
+                // If fetch fails (network error, timeout, etc), we're offline
+                updateStatus(false);
             } finally {
                 isChecking = false;
                 button.disabled = false;
@@ -121,15 +145,11 @@
 
         // Also listen to online/offline events
         window.addEventListener('online', () => {
-            const statusDiv = document.getElementById('status');
-            statusDiv.className = 'status connected';
-            statusDiv.textContent = '✓ Да, есть связь! / Yes, connected!';
+            updateStatus(true);
         });
 
         window.addEventListener('offline', () => {
-            const statusDiv = document.getElementById('status');
-            statusDiv.className = 'status disconnected';
-            statusDiv.textContent = '✗ Нет связи / No connection';
+            updateStatus(false);
         });
     </script>
 </body>
