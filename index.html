@@ -126,6 +126,8 @@
                 const response = await fetch(CONNECTION_CHECK_URL, {
                     method: 'GET',
                     cache: 'no-cache',
+                    mode: 'cors',
+                    credentials: 'omit',
                     signal: controller.signal
                 });
                 
@@ -138,7 +140,9 @@
                     updateStatus(false);
                 }
             } catch (error) {
-                // If fetch fails (network error, timeout, etc), we're offline
+                // Network error, timeout, or CORS issue - treat as offline
+                // In production, consider logging errors for debugging
+                console.debug('Connection check failed:', error.message);
                 updateStatus(false);
             } finally {
                 isChecking = false;
