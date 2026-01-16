@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проверка связи / Connection Check</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+        .status {
+            font-size: 1.5rem;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+            font-weight: bold;
+        }
+        .connected {
+            background-color: #4caf50;
+            color: white;
+        }
+        .disconnected {
+            background-color: #f44336;
+            color: white;
+        }
+        .checking {
+            background-color: #ff9800;
+            color: white;
+        }
+        button {
+            background-color: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #5568d3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .info {
+            margin-top: 1rem;
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Есть ли что на связи?</h1>
+        <div id="status" class="status checking">Проверка...</div>
+        <button id="checkButton" onclick="checkConnection()">Проверить снова</button>
+        <div class="info">
+            <p>Эта страница проверяет подключение к интернету</p>
+            <p>This page checks internet connectivity</p>
+        </div>
+    </div>
+
+    <script>
+        // Configuration constants
+        const CONNECTION_CHECK_TIMEOUT = 5000; // milliseconds
+        const CONNECTION_CHECK_URL = 'https://httpbin.org/get';
+        
+        let isChecking = false;
+
+        function updateStatus(isConnected) {
+            const statusDiv = document.getElementById('status');
+            if (isConnected) {
+                statusDiv.className = 'status connected';
+                statusDiv.textContent = '✓ Да, есть связь! / Yes, connected!';
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = '✗ Нет связи / No connection';
+            }
+        }
+
+        async function checkConnection() {
+            if (isChecking) return;
+            
+            isChecking = true;
+            const statusDiv = document.getElementById('status');
+            const button = document.getElementById('checkButton');
+            
+            statusDiv.className = 'status checking';
+            statusDiv.textContent = 'Проверка... / Checking...';
+            button.disabled = true;
+
+            try {
+                // Use navigator.onLine as primary check
+                if (!navigator.onLine) {
+                    updateStatus(false);
+                    return;
+                }
+
+                // Try to fetch a small resource with a timeout
+                // Using httpbin.org as it's specifically designed for testing HTTP requests
+                // For production, consider using your own health check endpoint
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), CONNECTION_CHECK_TIMEOUT);
+                
+                const response = await fetch(CONNECTION_CHECK_URL, {
+                    method: 'GET',
+                    cache: 'no-cache',
+                    mode: 'cors',
+                    credentials: 'omit',
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                // Check if response is successful
+                if (response.ok) {
+                    updateStatus(true);
+                } else {
+                    updateStatus(false);
+                }
+            } catch (error) {
+                // Network error, timeout, or CORS issue - treat as offline
+                // In production, consider logging errors for debugging
+                console.debug('Connection check failed:', error.message);
+                updateStatus(false);
+            } finally {
+                isChecking = false;
+                button.disabled = false;
+            }
+        }
+
+        // Check connection status when page loads
+        window.addEventListener('load', checkConnection);
+
+        // Also listen to online/offline events and recheck connection
+        window.addEventListener('online', () => {
+            checkConnection();
+        });
+
+        window.addEventListener('offline', () => {
+            updateStatus(false);
+        });
+    </script>
+</body>
+</html>
